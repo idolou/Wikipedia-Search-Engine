@@ -25,5 +25,7 @@ Search for the page rank of specific documents, the calculation of the page rank
 ### get_pageview - 
 Search for the page view of specific documents, the data was online and loades as python dictionary.
 
+# Exemples
+snapshot of top results for the query: Information Retrieval:
 ![image](https://user-images.githubusercontent.com/63515984/212550462-8d49bc73-3481-43d5-afb2-41395798923b.png)
 
