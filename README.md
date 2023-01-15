@@ -30,3 +30,12 @@ snapshot of top results for the query Information Retrieval:
 
 ![image](https://user-images.githubusercontent.com/63515984/212550462-8d49bc73-3481-43d5-afb2-41395798923b.png)
 
+
+query expantion:
+
+![image](https://user-images.githubusercontent.com/63515984/212551063-54016bc0-0bdc-4a90-a80c-b686ea8794b1.png)
+
+similarity between title and query:
+
+![image](https://user-images.githubusercontent.com/63515984/212551117-32389fd1-5920-4858-82bb-e5b65ac63d61.png)
+
