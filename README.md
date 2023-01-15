@@ -4,9 +4,9 @@ This project is part of the Information Retrieval Course.
 ## The project includes 3 main python files:
 ### 1. search_frontend.py:
   this python script run the flask application that allows users to send request via url and get the results (wikipedia document id's and titles).
-2. search_backend.py:
+### 2. search_backend.py:
   this python script run all the logic behind the search Engine.
-3. inverted_index_gcp.py:
+### 3. inverted_index_gcp.py:
   this file includes the class of Inverted_Index which save the indexs of all english wikipedia document for body, title and anchor texts.
   
   
