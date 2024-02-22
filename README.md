@@ -1,4 +1,4 @@
-Search Engine Wikipedia
+# Search Engine Wikipedia
 Built the inverted indexes using GCP cluster and pyspark RDDs, the engine works on the english wikipedia dump from 2021 which  includes over 6,000,000 million documents. the Search Engine runs on GCP VM Linux Instance.
 
 ## The project includes 3 main python files:
