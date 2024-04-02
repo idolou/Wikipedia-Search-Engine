@@ -11,7 +11,6 @@ from pathlib import Path
 import pickle
 from contextlib import closing
 from google.cloud import storage
-from collections import defaultdict
 BLOCK_SIZE = 1999998
 
 class MultiFileWriter:
