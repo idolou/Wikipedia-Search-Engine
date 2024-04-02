@@ -10,7 +10,7 @@ import heapq
 import pandas as pd
 from nltk.corpus import stopwords
 nltk.download('stopwords')
-# from nltk import PorterStemmer
+from nltk import PorterStemmer
 
 
 def read_pickle(file_name):
@@ -125,96 +125,134 @@ def get_title_by_doc_id(doc_id):
     return id_title_dict.get(doc_id, "Bad Title!")
 
 
-def search_body_tfidf_cosine(query_to_search, index, N, kind=""):
-  """
-  Search for documents based on the query using TF-IDF and cosine similarity.
-  The query will be preprocessed in advance (e.g., lower case, filtering stopwords, etc.').
-  The function will return a ranked list of documents based on the cosine similarity score.
-  For calculation of IDF, use log with base 10.
-  tf will be normalized based on the length of the document.
+import math
+from collections import defaultdict, Counter
 
-  Parameters:
-  -----------
-  query_to_search: list of tokens (str). This list will be preprocessed in advance (e.g., lower case, filtering stopwords, etc.').
-  index: inverted index
-  N: Integer (how many documents to retrieve). By default N = 3
-  kind: string (the type of the index). By default kind = ""
+def search_body_tfidf_cosine(query_to_search, index, N=3, kind=""):
+    """
+    Search for documents based on the query using TF-IDF and cosine similarity.
+    The query will be preprocessed in advance (e.g., lower case, filtering stopwords, etc.').
+    The function will return a ranked list of documents based on the cosine similarity score.
+    For calculation of IDF, use log with base 10.
+    tf will be normalized based on the length of the document.
 
-  Returns:
-  -----------
-  a ranked list of pairs (doc_id, score) in the length of N.
-  """
-  DL = read_pickle("Cosine_norm_dict")
-  words = index.df.keys()
-  normalized_tfidf_docs = defaultdict(list)
-  query_tfidf = {}
-  cos_sin_dict = defaultdict()
-  query = set(query_to_search)
-  counter = Counter(query_to_search)
-  epsilon = .0000001
+    Parameters:
+    -----------
+    query_to_search: list of tokens (str). This list will be preprocessed in advance (e.g., lower case, filtering stopwords, etc.').
+    index: inverted index
+    N: Integer (how many documents to retrieve). By default N = 3
+    kind: string (the type of the index). By default kind = ""
 
+    Returns:
+    -----------
+    a ranked list of pairs (doc_id, score) in the length of N.
+    """
+    # Read document lengths from a file (assuming it's a dictionary)
+    DL = read_pickle("Cosine_norm_dict")
+    
+    # Get all words from the index
+    words = index.df.keys()
+    
+    # defaultdict to store normalized TF-IDF scores for each term in documents
+    normalized_tfidf_docs = defaultdict(list)
+    
+    # Dictionary to store TF-IDF scores for terms in the query
+    query_tfidf = {}
+    
+    # Dictionary to store cosine similarity scores for documents
+    cos_sin_dict = defaultdict()
+    
+    # Set of unique terms in the query
+    query = set(query_to_search)
+    
+    # Counter to calculate term frequencies in the query
+    counter = Counter(query_to_search)
+    
+    # Smoothing value to avoid division by zero
+    epsilon = .0000001
 
-  for term in query:
-    if term in words:
+    # Calculate TF-IDF and cosine similarity for each term in the query
+    for term in query:
+        if term in words:
+            # Calculate TF (term frequency) in the query
+            tf = counter[term] / len(query_to_search)
+            
+            # Document frequency (DF) from the index
+            df = index.df[term]
+            
+            # Inverse Document Frequency (IDF) using log base 10
+            idf = math.log((index.N) / (df + epsilon), 10)  # Smoothing
+            
+            # Calculate TF-IDF for the term in the query
+            query_tfidf[term] = tf * idf
 
-      candidates = index.search(term, kind)
-      tf = counter[term]/len(query_to_search) # term frequency divded by the length of the query
-      df = index.df[term]
-      idf = math.log((index.N)/(df+epsilon),10) #smoothing
-      query_tfidf[term] = tf * idf
+            # Get candidates (documents) containing the term from the index
+            candidates = index.search(term, kind)
+            
+            # Calculate normalized TF-IDF scores for the term in each document
+            for doc_id, tf in candidates:
+                if doc_id in DL:
+                    tfidf = (tf / DL[doc_id]) * math.log(len(DL) / index.df[term], 10)
+                    normalized_tfidf_docs[term].append((doc_id, tfidf))
 
-      for doc_id, tf in candidates:
-        ### check
-        if doc_id in DL:
-          tfidf = (doc_id,(tf/DL_body[doc_id])*math.log(len(DL_body)/index.df[term],10))
-          normalized_tfidf_docs[term].append(tfidf)
-
-      for token, candidate in normalized_tfidf_docs.items():
+    # Calculate cosine similarity for each document
+    for token, candidate in normalized_tfidf_docs.items():
         for doc_id, tfidf in candidate:
-          numerator = tfidf * query_tfidf[token]
-          denominator = DL[doc_id] * math.sqrt(sum([x**2 for x in query_tfidf.values()]))
-          if denominator > 0:
-            cos_sin_dict[doc_id] = numerator/denominator
+            numerator = tfidf * query_tfidf[token]
+            denominator = DL[doc_id] * math.sqrt(sum([x ** 2 for x in query_tfidf.values()]))
+            if denominator > 0:
+                cos_sin_dict[doc_id] = numerator / denominator
+
+    # Get top N documents based on cosine similarity scores
+    top_n_docs = get_top_n(cos_sin_dict, N)
+    
+    # Extract document IDs of top N documents
+    topN_id = [tup[0] for tup in top_n_docs]
+    
+    # Get titles for the top N documents
+    return [(doc_id, get_title_by_doc_id(doc_id)) for doc_id in topN_id]
 
 
-  top_n_docs = get_top_n(cos_sin_dict, N)
-
-  topN_id = [tup[0] for tup in top_n_docs]
-
-  return [(id, get_title_by_doc_id(id)) for id in topN_id]
 
 
 
 
 
-def doc_binary_search(query_to_search, index, kind=""):
-  """
-  Help function 
+def doc_binary_search(query_to_search, index, kind="", N=100):
+    """
+    Search for documents based on the query using binary search in an inverted index.
+    The function returns a ranked list of documents based on the frequency of query terms in documents.
 
-  Parameters:
-  -----------
-  query_to_search: list of tokens (str). This list will be preprocessed in advance (e.g., lower case, filtering stopwords, etc.'). 
-                    Example: 'Hello, I love information retrival' --->  ['hello','love','information','retrieval']
+    Parameters:
+    -----------
+    query_to_search: list of tokens (str). This list will be preprocessed in advance (e.g., lower case, filtering stopwords, etc.').
+    index: inverted index loaded from the corresponding files.
+    kind: string (the type of the index). By default kind = ""
+    N: Integer (how many documents to retrieve). By default N = 100.
 
-  index_title:     inverted index loaded from the corresponding files.
-  N:               Integer. How many documents to retrieve. By default N = 100.
+    Returns:
+    -----------
+    return: a list of pairs in the following format: (doc_id, frequency).
+    """
+    # Dictionary to store candidates (document IDs and their frequencies)
+    candidates = defaultdict(int)
 
-  Returns:
-  -----------
-  return: a list of pairs in the following format:(doc_id, title). 
-  """
+    # Iterate through unique terms in the query
+    for term in set(query_to_search):
+        # Check if the term is present in the index
+        if term in index.df.keys():
+            # Retrieve documents containing the term from the index
+            docs = index.search(term, kind)
+            # Update frequencies of documents in candidates
+            for doc_id, freq in docs:
+                candidates[doc_id] += 1
 
-  candidates = defaultdict(int)
-  for term in set(query_to_search):
-      if term in index.df.keys():
+    # Sort candidates based on frequency in descending order
+    candidates = sorted(candidates.items(), key=lambda x: x[1], reverse=True)
+    
+    # Return the top N candidates (default is 100)
+    return candidates[:N]
 
-        docs = index.search(term, kind)
-        for doc_id, freq in docs:
-          candidates[doc_id] += 1
-
-
-  candidates = sorted(candidates.items(), key=lambda x: x[1], reverse=True)
-  return candidates
 
 
 
